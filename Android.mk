@@ -78,8 +78,7 @@ LOCAL_C_INCLUDES := \
 	$(LOCAL_PATH)/include \
 	$(LOCAL_PATH)/samsung-ipc \
 	$(LOCAL_PATH)/samsung-ipc/devices/xmm616/ \
-	$(LOCAL_PATH)/samsung-ipc/devices/xmm626/ \
-	external/openssl/include
+	$(LOCAL_PATH)/samsung-ipc/devices/xmm626/
 
 LOCAL_CFLAGS := \
 	-DIPC_DEVICE_NAME=\"$(ipc_device_name)\" \

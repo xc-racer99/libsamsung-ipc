@@ -26,6 +26,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
+#include <sys/select.h>
 
 #include <samsung-ipc.h>
 #include <ipc.h>
