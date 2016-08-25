@@ -30,6 +30,14 @@
 #define IPC_RFS_NV_WRITE_ITEM                                   0x4202
 
 /*
+ * Values
+ */
+
+#define NV_DATA_SECRET                          "Samsung_Android_RIL"
+#define NV_DATA_SIZE                                            0x200000
+#define NV_DATA_CHUNK_SIZE                                      0x1000
+
+/*
  * Structures
  */
 
