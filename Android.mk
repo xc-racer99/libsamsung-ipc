@@ -35,7 +35,7 @@ ifneq (,$(filter maguro,$(TARGET_DEVICE)))
 	ipc_device_name := maguro
 endif
 
-ifneq (,$(filter p5100 p3100,$(TARGET_DEVICE)))
+ifneq (,$(filter p5100 p3100 espresso3g,$(TARGET_DEVICE)))
 	ipc_device_name := piranha
 endif
 

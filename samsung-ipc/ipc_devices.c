@@ -114,6 +114,16 @@ struct ipc_device_desc ipc_devices[] = {
         .nv_data_specs = &piranha_nv_data_specs,
     },
     {
+        .name = "piranha",
+        .board_name = "omap4 espresso board",
+        .kernel_version = NULL,
+        .fmt_ops = &piranha_fmt_ops,
+        .rfs_ops = &piranha_rfs_ops,
+        .handlers = &piranha_handlers,
+        .gprs_specs = &piranha_gprs_specs,
+        .nv_data_specs = &piranha_nv_data_specs,
+    },
+    {
         .name = "i9300",
         .board_name = "smdk4x12",
         .kernel_version = NULL,
