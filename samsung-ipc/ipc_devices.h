@@ -27,6 +27,7 @@
 #include "devices/piranha/piranha.h"
 #include "devices/i9300/i9300.h"
 #include "devices/n7100/n7100.h"
+#include "devices/n5100/n5100.h"
 
 #ifndef __IPC_DEVICES_H__
 #define __IPC_DEVICES_H__
