@@ -68,6 +68,7 @@ LOCAL_SRC_FILES := \
 	samsung-ipc/devices/i9300/i9300.c \
 	samsung-ipc/devices/n7100/n7100.c \
 	samsung-ipc/devices/n5100/n5100.c \
+	samsung-ipc/crc_ccitt.c \
 	samsung-ipc/utils.c \
 	samsung-ipc/call.c \
 	samsung-ipc/sms.c \

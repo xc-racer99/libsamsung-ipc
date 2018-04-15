@@ -55,6 +55,7 @@ libsamsung_ipc_la_SOURCES = \
 	devices/n5100/n5100.c \
 	devices/n5100/n5100.h \
 	utils.c \
+	crc_ccitt.c \
 	call.c \
 	sms.c \
 	sec.c \
