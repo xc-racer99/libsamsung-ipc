@@ -70,6 +70,7 @@ struct ipc_client_gprs_specs {
 };
 
 struct ipc_client_nv_data_specs {
+    char *efs_root;
     char *nv_data_path;
     char *nv_data_md5_path;
     char *nv_data_backup_path;

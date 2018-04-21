@@ -105,6 +105,7 @@ char *ipc_client_gprs_get_iface(struct ipc_client *client, unsigned int cid);
 int ipc_client_gprs_get_capabilities(struct ipc_client *client,
     struct ipc_client_gprs_capabilities *capabilities);
 
+char *ipc_client_efs_root(struct ipc_client *client);
 char *ipc_client_nv_data_path(struct ipc_client *client);
 char *ipc_client_nv_data_md5_path(struct ipc_client *client);
 char *ipc_client_nv_data_backup_path(struct ipc_client *client);

@@ -430,6 +430,14 @@ int ipc_client_gprs_get_capabilities(struct ipc_client *client,
     return client->gprs_specs->gprs_get_capabilities(capabilities);
 }
 
+char *ipc_client_efs_root(struct ipc_client *client)
+{
+    if (client == NULL || client->nv_data_specs == NULL || client->nv_data_specs->efs_root == NULL)
+        return NULL;
+
+    return client->nv_data_specs->efs_root;
+}
+
 char *ipc_client_nv_data_path(struct ipc_client *client)
 {
     if (client == NULL || client->nv_data_specs == NULL || client->nv_data_specs->nv_data_path == NULL)
