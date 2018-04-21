@@ -345,6 +345,44 @@ const char *ipc_command_string(unsigned short command)
             return "IPC_RFS_NV_READ_ITEM";
         case IPC_RFS_NV_WRITE_ITEM:
             return "IPC_RFS_NV_WRITE_ITEM";
+        case IPC_RFS_READ_FILE:
+            return "IPC_RFS_READ_FILE";
+        case IPC_RFS_WRITE_FILE:
+            return "IPC_RFS_WRITE_FILE";
+        case IPC_RFS_LSEEK_FILE:
+            return "IPC_RFS_LSEEK_FILE";
+        case IPC_RFS_CLOSE_FILE:
+            return "IPC_RFS_CLOSE_FILE";
+        case IPC_RFS_PUT_FILE:
+            return "IPC_RFS_PUT_FILE";
+        case IPC_RFS_GET_FILE:
+            return "IPC_RFS_GET_FILE";
+        case IPC_RFS_RENAME_FILE:
+            return "IPC_RFS_RENAME_FILE";
+        case IPC_RFS_GET_FILE_INFO:
+            return "IPC_RFS_GET_FILE_INFO";
+        case IPC_RFS_UNLINK_FILE:
+            return "IPC_RFS_UNLINK_FILE";
+        case IPC_RFS_MAKE_DIR:
+            return "IPC_RFS_MAKE_DIR";
+        case IPC_RFS_REMOVE_DIR:
+            return "IPC_RFS_REMOVE_DIR";
+        case IPC_RFS_OPEN_DIR:
+            return "IPC_RFS_OPEN_DIR";
+        case IPC_RFS_READ_DIR:
+            return "IPC_RFS_READ_DIR";
+        case IPC_RFS_CLOSE_DIR:
+            return "IPC_RFS_CLOSE_DIR";
+        case IPC_RFS_OPEN_FILE:
+            return "IPC_RFS_OPEN_FILE";
+        case IPC_RFS_FTRUNCATE_FILE:
+            return "IPC_RFS_FTRUNCATE_FILE";
+        case IPC_RFS_GET_HANDLE_INFO:
+            return "IPC_RFS_GET_HANDLE_INFO";
+        case IPC_RFS_CREATE_FILE:
+            return "IPC_RFS_CREATE_FILE";
+        case IPC_RFS_NV_WRITE_ALL_ITEM:
+            return "IPC_RFS_NV_WRITE_ALL_ITEM";
         case IPC_GEN_PHONE_RES:
             return "IPC_GEN_PHONE_RES";
         default:
