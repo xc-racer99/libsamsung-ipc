@@ -117,6 +117,12 @@ const char *ipc_command_string(unsigned short command)
             return "IPC_CALL_WAITING";
         case IPC_CALL_LINE_ID:
             return "IPC_CALL_LINE_ID";
+        case IPC_CALL_SIGNAL:
+            return "IPC_CALL_SIGNAL";
+        case IPC_CALL_VOICE_PRIVACY:
+            return "IPC_CALL_VOICE_PRIVACY";
+        case IPC_CALL_CALL_TIME_COUNT:
+            return "IPC_CALL_CALL_TIME_COUNT";
         case IPC_SMS_SEND_MSG:
             return "IPC_SMS_SEND_MSG";
         case IPC_SMS_INCOMING_MSG:

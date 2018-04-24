@@ -37,6 +37,9 @@
 #define IPC_CALL_CONT_DTMF                                      0x0208
 #define IPC_CALL_WAITING                                        0x0209
 #define IPC_CALL_LINE_ID                                        0x020A
+#define IPC_CALL_SIGNAL                                         0x020B
+#define IPC_CALL_VOICE_PRIVACY                                  0x020C
+#define IPC_CALL_CALL_TIME_COUNT                                0x020D
 
 /*
  * Values
