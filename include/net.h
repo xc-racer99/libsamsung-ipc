@@ -94,7 +94,7 @@ struct ipc_net_plmn_sel_request_data {
 struct ipc_net_serving_network_data {
     unsigned char unknown[3];
     char plmn[6];
-    unsigned short lac;
+    unsigned char lac; // This can be either a short or a char
 } __attribute__((__packed__));
 
 struct ipc_net_plmn_list_header {
