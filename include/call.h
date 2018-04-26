@@ -45,6 +45,7 @@
  * Values
  */
 
+#define IPC_CALL_TYPE_DEFAULT                                   0x00
 #define IPC_CALL_TYPE_VOICE                                     0x01
 #define IPC_CALL_TYPE_DATA                                      0x03
 
