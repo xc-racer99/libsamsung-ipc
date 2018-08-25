@@ -80,6 +80,7 @@ LOCAL_SRC_FILES := \
 	samsung-ipc/gen.c
 
 LOCAL_C_INCLUDES := \
+	external/openssl/include \
 	$(LOCAL_PATH)/include \
 	$(LOCAL_PATH)/samsung-ipc \
 	$(LOCAL_PATH)/samsung-ipc/devices/xmm616/ \
