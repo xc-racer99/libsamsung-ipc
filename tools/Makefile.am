@@ -10,9 +10,9 @@ bin_PROGRAMS = \
 	nv_data-md5 \
 	$(NULL)
 
-ipc_modem_SOURCES = ipc-modem.c
+ipc_modem_SOURCES = ipc-modem.c rfs.c
 ipc_modem_LDADD = $(top_builddir)/samsung-ipc/libsamsung-ipc.la
-ipc_modem_LDFLAGS =
+ipc_modem_LDFLAGS = -lpthread
 
 ipc_test_SOURCES = ipc-test.c
 ipc_test_LDADD = $(top_builddir)/samsung-ipc/libsamsung-ipc.la
