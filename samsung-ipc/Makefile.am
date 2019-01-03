@@ -36,8 +36,10 @@ libsamsung_ipc_la_SOURCES = \
 	devices/xmm626/modem_link_device_hsic.h \
 	devices/xmm626/modem_prj.h \
 	devices/crespo/crespo.c \
+	devices/crespo/crespo_ste_m5730.c \
 	devices/crespo/crespo.h \
 	devices/crespo/crespo_modem_ctl.h \
+	devices/crespo/ste_m5730.h \
 	devices/aries/aries.c \
 	devices/aries/aries.h \
 	devices/aries/onedram.h \

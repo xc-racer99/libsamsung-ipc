@@ -17,7 +17,7 @@
 
 LOCAL_PATH := $(call my-dir)
 
-ifneq (,$(filter crespo,$(TARGET_DEVICE)))
+ifneq (,$(filter crespo fascinate4gmtd fascinate4gubi galaxys4gmtd galaxys4gubi telusgalaxys4gmtd telusgalaxys4gubi,$(TARGET_DEVICE)))
 	ipc_device_name := crespo
 endif
 
@@ -59,6 +59,7 @@ libsamsung_ipc_local_src_files := \
 	samsung-ipc/devices/xmm626/xmm626_mipi.c \
 	samsung-ipc/devices/xmm626/xmm626_sec_modem.c \
 	samsung-ipc/devices/crespo/crespo.c \
+	samsung-ipc/devices/crespo/crespo_ste_m5730.c \
 	samsung-ipc/devices/aries/aries.c \
 	samsung-ipc/devices/galaxys2/galaxys2.c \
 	samsung-ipc/devices/maguro/maguro.c \
