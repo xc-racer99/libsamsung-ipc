@@ -20,19 +20,24 @@
 #ifndef __CRESPO_H__
 #define __CRESPO_H__
 
-#define CRESPO_MODEM_IMAGE_SIZE                                 0xD80000
+#define CRESPO_XMM_MODEM_IMAGE_SIZE                             0xD80000
+#define CRESPO_STE_MODEM_IMAGE_SIZE                             0xE05000
 #define CRESPO_PSI_SIZE                                         0x5000
 #define CRESPO_MODEM_CTL_NV_DATA_OFFSET                         0xD80000
 #define CRESPO_BUFFER_LENGTH                                    0x50000
 
 #define CRESPO_MODEM_IMAGE_DEVICE               "/dev/mtd/mtd5ro"
+#define CRESPO_ALT_MODEM_IMAGE_DEVICE           "/radio/modem.bin"
 #define CRESPO_MODEM_SERIAL_DEVICE              "/dev/s3c2410_serial3"
+#define CRESPO_ALT_MODEM_SERIAL_DEVICE          "/dev/ttySAC3"
 #define CRESPO_MODEM_CTL_DEVICE                 "/dev/modem_ctl"
 #define CRESPO_MODEM_FMT_DEVICE                 "/dev/modem_fmt"
 #define CRESPO_MODEM_RFS_DEVICE                 "/dev/modem_rfs"
 
 #define CRESPO_GPRS_IFACE_PREFIX                "rmnet"
 #define CRESPO_GPRS_IFACE_COUNT                                 3
+
+#define CRESPO_EFS_ROOT                         "/efs/root"
 
 struct crespo_transport_data {
     int fd;

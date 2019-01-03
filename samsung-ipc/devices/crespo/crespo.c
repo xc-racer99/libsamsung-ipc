@@ -26,6 +26,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
@@ -36,9 +37,10 @@
 #include "crespo_modem_ctl.h"
 
 #include "xmm616.h"
+#include "ste_m5730.h"
 #include "crespo.h"
 
-int crespo_boot(struct ipc_client *client)
+int crespo_xmm_boot(struct ipc_client *client)
 {
     void *modem_image_data = NULL;
     int modem_ctl_fd = -1;
@@ -51,7 +53,13 @@ int crespo_boot(struct ipc_client *client)
 
     ipc_client_log(client, "Starting crespo modem boot");
 
-    modem_image_data = file_data_read(CRESPO_MODEM_IMAGE_DEVICE, CRESPO_MODEM_IMAGE_SIZE, 0x1000, 0);
+    /* Try alternative modem image device first as the main one may exist
+     * even when it doesn't contain the modem
+     */
+    modem_image_data = file_data_read(CRESPO_ALT_MODEM_IMAGE_DEVICE, CRESPO_XMM_MODEM_IMAGE_SIZE, 0x1000, 0);
+    if (modem_image_data == NULL)
+        modem_image_data = file_data_read(CRESPO_MODEM_IMAGE_DEVICE, CRESPO_XMM_MODEM_IMAGE_SIZE, 0x1000, 0);
+
     if (modem_image_data == NULL) {
         ipc_client_log(client, "Reading modem image data failed");
         goto error;
@@ -73,6 +81,9 @@ int crespo_boot(struct ipc_client *client)
     ipc_client_log(client, "Reset modem");
 
     serial_fd = open(CRESPO_MODEM_SERIAL_DEVICE, O_RDWR | O_NDELAY);
+    if (serial_fd < 0 && errno == ENOENT)
+        serial_fd = open(CRESPO_ALT_MODEM_SERIAL_DEVICE, O_RDWR | O_NDELAY);
+
     if (serial_fd < 0) {
         ipc_client_log(client, "Opening serial failed");
         goto error;
@@ -94,7 +105,7 @@ int crespo_boot(struct ipc_client *client)
 
     lseek(modem_ctl_fd, 0, SEEK_SET);
 
-    rc = xmm616_firmware_send(client, modem_ctl_fd, NULL, (void *) p, CRESPO_MODEM_IMAGE_SIZE - CRESPO_PSI_SIZE);
+    rc = xmm616_firmware_send(client, modem_ctl_fd, NULL, (void *) p, CRESPO_XMM_MODEM_IMAGE_SIZE - CRESPO_PSI_SIZE);
     if (rc < 0) {
         ipc_client_log(client, "Sending XMM616 firmware failed");
         goto error;
@@ -125,6 +136,21 @@ complete:
 
     if (modem_ctl_fd >= 0)
         close(modem_ctl_fd);
+
+    return rc;
+}
+
+int crespo_boot(struct ipc_client *client)
+{
+    int rc;
+
+    if (crespo_is_ste()) {
+        ipc_client_log(client, "Detected an STE M5730 modem");
+        rc = crespo_ste_boot(client);
+    } else {
+        ipc_client_log(client, "Detected an XMM6160 modem");
+        rc = crespo_xmm_boot(client);
+    }
 
     return rc;
 }
@@ -444,7 +470,7 @@ int crespo_poll(void *data, struct ipc_poll_fds *fds, struct timeval *timeout)
     return rc;
 }
 
-int crespo_power_on(void *data)
+int crespo_xmm_power_on(void *data)
 {
     int fd;
     int rc;
@@ -461,6 +487,14 @@ int crespo_power_on(void *data)
         return -1;
 
     return 0;
+}
+
+int crespo_power_on(void *data)
+{
+    if (crespo_is_ste())
+        return crespo_ste_power_on(data);
+
+    return crespo_xmm_power_on(data);
 }
 
 int crespo_power_off(void *data)
@@ -594,6 +628,7 @@ struct ipc_client_gprs_specs crespo_gprs_specs = {
 };
 
 struct ipc_client_nv_data_specs crespo_nv_data_specs = {
+    .efs_root = CRESPO_EFS_ROOT,
     .nv_data_path = XMM616_NV_DATA_PATH,
     .nv_data_md5_path = XMM616_NV_DATA_MD5_PATH,
     .nv_data_backup_path = XMM616_NV_DATA_BACKUP_PATH,
