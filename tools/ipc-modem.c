@@ -237,9 +237,15 @@ void modem_response_call(struct ipc_client *client, struct ipc_message *resp)
     switch(resp->command)
     {
         case IPC_CALL_LIST:
-/*
-            if(in_call)
+
+            if(in_call) {
                 modem_exec_call_answer(client);
+                modem_snd_clock_ctrl(client);
+                modem_snd_spkr_volume_ctrl(client);
+                modem_snd_no_mic_mute(client);
+                modem_snd_audio_path_ctrl(client);
+            }
+/*
             if(out_call)
                 modem_snd_no_mic_mute(client);
 */
