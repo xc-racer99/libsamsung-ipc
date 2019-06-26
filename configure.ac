@@ -1,4 +1,4 @@
-AC_INIT([libsamsung-ipc], [0.3.1], [contact@replicant.us], [libsamsung-ipc])
+AC_INIT([libsamsung-ipc], [0.3.2], [contact@replicant.us], [libsamsung-ipc])
 AC_CONFIG_SRCDIR([Makefile.am])
 AC_CONFIG_HEADERS(config.h)
 AM_INIT_AUTOMAKE([dist-bzip2 subdir-objects])

@@ -1,3 +1,29 @@
+
+Version 0.3.2
+=====================
+
+eff88b2 rfs: Move all helpers to common rfs code
+3541bff ipc-modem: Make incoming call audio work
+63fe5d3 Make /proc/cpuinfo matching actually work
+1c1a56e ipc-modem: Add support for RFS commands
+660c5e3 Add support for mainline kernel and STE M5730 modems to Crespo driver
+42aaa1a Add CRC CCITT calculation library
+c14e65f Add a default call type
+4db4786 Add more call type defines
+cf894c5 Fix struct ipc_net_serving_network_data definition
+c0fbf98 Add headers and defines for more RFS commands
+2af14f9 Fix includes for 4.4
+55a5aaa add support for n5100
+956f3c5 support new codename and board name for piranha
+c23c987 Merge remote-tracking branch 'replicant/master' into replicant-6.0
+f53c79a Add some missing headers
+a052681 tools: nv_data-md5 tool for calculating (salted) nv_data md5
+1c6f0cf fix the rest of linker errors and get rid of implicit declaration warnings
+c2d1f03 fix includes
+00c0e2f aries: The gprs iface may be requested before it's activated
+542bc49 ipc_utils: ipc_data_dump string escape
+de0f592 gprs: Unknown fields
+
 Version 0.3.1
 =====================
 
