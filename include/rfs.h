@@ -201,6 +201,11 @@ void *ipc_rfs_nv_read_item_setup(struct ipc_rfs_nv_read_item_response_header *he
     const void *nv_data, size_t nv_size);
 size_t ipc_rfs_nv_write_item_size_extract(const void *data, size_t size);
 void *ipc_rfs_nv_write_item_extract(const void *data, size_t size);
+int ipc_rfs_nv_read_item(struct ipc_client *client, struct ipc_message *message);
+int ipc_rfs_nv_write_item(struct ipc_client *client, struct ipc_message *message);
+int ipc_rfs_read_dir(struct ipc_client *client, struct ipc_message *message);
+int ipc_rfs_generic_io(struct ipc_client *client, struct ipc_message *message);
+int ipc_rfs_file_info(struct ipc_client *client, struct ipc_message *message);
 
 #endif
 
