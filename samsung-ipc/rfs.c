@@ -25,6 +25,8 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <dirent.h>
+#include <limits.h>     /* PATH_MAX */
 
 #include <openssl/md5.h>
 
@@ -725,6 +727,576 @@ void *ipc_rfs_nv_write_item_extract(const void *data, size_t size)
     nv_data = (void *) ((unsigned char *) data + sizeof(struct ipc_rfs_nv_write_item_request_header));
 
     return nv_data;
+}
+
+int ipc_rfs_nv_read_item(struct ipc_client *client, struct ipc_message *message)
+{
+    struct ipc_rfs_nv_read_item_response_header response_header;
+    struct ipc_rfs_nv_read_item_request_data *data;
+    struct ipc_rfs_data *ipc_rfs_data;
+    void *response_data = NULL;
+    size_t response_size = 0;
+    void *nv_data = NULL;
+    int rc;
+
+    if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_rfs_nv_read_item_request_data))
+        return -1;
+
+    data = (struct ipc_rfs_nv_read_item_request_data *) message->data;
+
+    memset(&response_header, 0, sizeof(response_header));
+
+    nv_data = ipc_nv_data_read(client, data->length, data->offset);
+    if (nv_data == NULL) {
+        ipc_client_log(client, "Reading %d nv_data bytes at offset 0x%x failed", data->length, data->offset);
+
+        response_header.confirm = 0;
+
+        rc = ipc_client_send(client, message->aseq, IPC_RFS_NV_READ_ITEM, IPC_TYPE_RESP, (void *) &response_header, sizeof(response_header));
+        if (rc < 0)
+            goto complete;
+
+        goto complete;
+    }
+
+    ipc_client_log(client, "Read %d nv_data bytes at offset 0x%x", data->length, data->offset);
+
+    response_header.confirm = 1;
+    response_header.offset = data->offset;
+    response_header.length = data->length;
+
+    response_size = ipc_rfs_nv_data_item_size_setup(&response_header, nv_data, data->length);
+    if (response_size == 0)
+        goto complete;
+
+    response_data = ipc_rfs_nv_read_item_setup(&response_header, nv_data, data->length);
+    if (response_data == NULL)
+        goto complete;
+
+    rc = ipc_client_send(client, message->aseq, IPC_RFS_NV_READ_ITEM, IPC_TYPE_RESP, response_data, response_size);
+    if (rc < 0)
+        goto complete;
+
+    goto complete;
+
+complete:
+    if (response_data != NULL && response_size > 0)
+        free(response_data);
+
+    if (nv_data != NULL)
+        free(nv_data);
+
+    return 0;
+}
+
+int ipc_rfs_nv_write_item(struct ipc_client *client, struct ipc_message *message)
+{
+    struct ipc_rfs_nv_write_item_request_header *header;
+    struct ipc_rfs_nv_write_item_response_data data;
+    struct ipc_rfs_data *ipc_rfs_data;
+    void *nv_data;
+    size_t nv_size;
+    int rc;
+
+    if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_rfs_nv_write_item_request_header))
+        return -1;
+    header = (struct ipc_rfs_nv_write_item_request_header *) message->data;
+
+    nv_size = ipc_rfs_nv_write_item_size_extract(message->data, message->size);
+    if (nv_size == 0)
+        return 0;
+
+    nv_data = ipc_rfs_nv_write_item_extract(message->data, message->size);
+    if (nv_data == NULL)
+        return 0;
+
+    memset(&data, 0, sizeof(data));
+
+    rc = ipc_nv_data_write(client, nv_data, header->length, header->offset);
+    if (rc < 0) {
+        ipc_client_log(client, "Writing %d nv_data byte(s) at offset 0x%x failed", header->length, header->offset);
+
+        data.confirm = 0;
+    } else {
+        ipc_client_log(client, "Wrote %d nv_data byte(s) at offset 0x%x", header->length, header->offset);
+
+        data.confirm = 1;
+        data.offset = header->offset;
+        data.length = header->length;
+    }
+
+    rc = ipc_client_send(client, message->aseq, IPC_RFS_NV_WRITE_ITEM, IPC_TYPE_RESP, (void *) &data, sizeof(data));
+    if (rc < 0)
+        return 0;
+
+    return 0;
+}
+
+int ipc_rfs_read_dir(struct ipc_client *client, struct ipc_message *message)
+{
+    struct ipc_rfs_read_dir_request_header *header;
+    struct ipc_rfs_read_dir_response_header *response_header;
+    struct dirent *dirent;
+    DIR *dirp;
+    void *buffer = NULL;
+    size_t len;
+    int rc;
+
+    if (message == NULL || message->data == NULL || message->size < sizeof(struct ipc_rfs_read_dir_request_header))
+        return -1;
+
+    header = (struct ipc_rfs_read_dir_request_header *) message->data;
+
+    dirp = (DIR *) header->addr;
+
+    /* Clear errno before readdir call */
+    errno = 0;
+
+    dirent = readdir(dirp);
+    if (dirent == NULL) {
+        len = sizeof(struct ipc_rfs_read_dir_response_header);
+        buffer = alloca(len);
+        if (buffer == NULL)
+            return -1;
+        response_header = (struct ipc_rfs_read_dir_response_header *) buffer;
+        response_header->ret = -1;
+        response_header->len = 0;
+        response_header->err = errno;
+    } else {
+        len = sizeof(struct ipc_rfs_read_dir_response_header) + strlen(dirent->d_name);
+        buffer = alloca(len);
+        if (buffer == NULL)
+            return -1;
+        response_header = (struct ipc_rfs_read_dir_response_header *) buffer;
+        response_header->ret = 0;
+        response_header->len = strlen(dirent->d_name);
+        response_header->err = 0;
+        strcpy((char *) buffer + sizeof(struct ipc_rfs_read_dir_response_header), dirent->d_name);
+    }
+
+    rc = ipc_client_send(client, message->aseq, IPC_RFS_READ_DIR, IPC_TYPE_RESP, buffer, len);
+
+    return 0;
+}
+
+int mkdir_p(char *file_path)
+{
+    char *p;
+    for (p = strchr(file_path + 1, '/'); p; p = strchr(p + 1, '/')) {
+        *p = '\0';
+        if (mkdir(file_path, S_IRWXU | S_IRWXG) == -1) {
+            if (errno != EEXIST) {
+                *p = '/';
+                return -1;
+            }
+        }
+        *p = '/';
+    }
+
+    return 0;
+}
+
+int ipc_rfs_make_path(struct ipc_client *client, char *path, char *rel_path, int rel_path_len)
+{
+    char *efs_root;
+    char *p;
+
+    if (rel_path == NULL) {
+        ipc_client_log(client, "rel_path is null");
+        return -1;
+    }
+
+    efs_root = ipc_client_efs_root(client);
+    if (efs_root == NULL) {
+        ipc_client_log(client, "Failed to read efs_root");
+        return -1;
+    }
+
+    /* Combine efs_root and rel_path */
+    strcpy(path, efs_root);
+    strncat(path, rel_path, rel_path_len);
+
+    p = realpath(path, NULL);
+
+    /* Make sure we're not trying to go above efs_root */
+    if (p == NULL) {
+        /* Conditionally allow ENOENT and ENOTDIR as they might be creating something */
+        if (errno == ENOENT || errno == ENOTDIR) {
+            if (strstr(path, "/../") != NULL) {
+                ipc_client_log(client, "path %s contains /../ and realpath() failed with errno %d, denying access", path, errno);
+                return -1;
+            }
+        } else {
+            ipc_client_log(client, "realpath() failed on %s with errno %d, denying access", path, errno);
+            return -1;
+        }
+    } else if (strncmp(efs_root, p, strlen(efs_root))) {
+        ipc_client_log(client, "WARNING: RIL is trying to access %s which is outside of %s, denying access", p, efs_root);
+        return -1;
+    }
+
+    ipc_client_log(client, "Created path %s", path);
+
+    return 0;
+}
+
+int ipc_rfs_generic_io(struct ipc_client *client, struct ipc_message *message)
+{
+    struct ipc_rfs_generic_io_response_header data;
+    struct ipc_rfs_data *ipc_rfs_data;
+    int rc;
+
+    if (message == NULL || message->data == NULL)
+        return -1;
+
+    memset(&data, 0, sizeof(data));
+
+    switch (message->command) {
+        case IPC_RFS_READ_FILE:
+        {
+            if (message->size < sizeof(struct ipc_rfs_read_file_request_header))
+                return -1;
+
+            struct ipc_rfs_read_file_request_header *header =
+                    (struct ipc_rfs_read_file_request_header *) message->data;
+            struct ipc_rfs_generic_io_response_header *response;
+
+            /* Special case - we need a bigger buffer */
+            void *buf = alloca(sizeof(struct ipc_rfs_generic_io_response_header) + header->len);
+            if (buf == NULL) {
+                ipc_client_log(client, "alloca failed");
+                goto error;
+            }
+
+            rc = read(header->fd,
+                    (char *) ((char *) buf + sizeof(struct ipc_rfs_generic_io_response_header)),
+                    header->len);
+
+            response = buf;
+
+            response->ret = rc;
+
+            if (response->ret == 0)
+                response->err = ENOENT;
+            else if (response->ret < 0)
+                response->err = errno;
+            else
+                response->err = 0;
+
+            rc = ipc_client_send(client, message->aseq, message->command, IPC_TYPE_RESP, response,
+                    sizeof(struct ipc_rfs_generic_io_response_header) + response->ret);
+
+            return 0;
+        }
+        case IPC_RFS_WRITE_FILE:
+        {
+            if (message->size < sizeof(struct ipc_rfs_write_file_request_header))
+                return -1;
+
+            struct ipc_rfs_write_file_request_header *header =
+                    (struct ipc_rfs_write_file_request_header *) message->data;
+
+            data.ret = write(header->fd,
+                    header + sizeof(struct ipc_rfs_write_file_request_header),
+                    header->len);
+            break;
+        }
+        case IPC_RFS_LSEEK_FILE:
+        {
+            if (message->size < sizeof(struct ipc_rfs_lseek_file_request_header))
+                return -1;
+
+            struct ipc_rfs_lseek_file_request_header *header =
+                    (struct ipc_rfs_lseek_file_request_header *) message->data;
+            data.ret = lseek(header->fd, header->offset, header->whence);
+            break;
+        }
+        case IPC_RFS_CLOSE_FILE:
+        {
+            if (message->size < sizeof(struct ipc_rfs_close_file_request_header))
+                return -1;
+
+            struct ipc_rfs_close_file_request_header *header =
+                    (struct ipc_rfs_close_file_request_header *) message->data;
+            data.ret = close(header->fd);
+            break;
+        }
+        case IPC_RFS_RENAME_FILE:
+        {
+            if (message->size < sizeof(struct ipc_rfs_rename_file_request_header))
+                return -1;
+
+            struct ipc_rfs_rename_file_request_header *header1 =
+                    (struct ipc_rfs_rename_file_request_header *) message->data;
+            struct ipc_rfs_rename_file_request_header *header2 =
+                    (struct ipc_rfs_rename_file_request_header *)
+                    ((char *) message->data
+                    + sizeof(struct ipc_rfs_rename_file_request_header)
+                    + header1->path_len);
+            char oldpath[PATH_MAX];
+            char newpath[PATH_MAX];;
+
+            rc = ipc_rfs_make_path(client, oldpath,
+                    (char *) header1 + sizeof(struct ipc_rfs_rename_file_request_header),
+                    header1->path_len);
+
+            if (rc < 0) {
+                ipc_client_log(client, "ipc_rfs_make_path failed");
+                goto error;
+            }
+
+            rc = ipc_rfs_make_path(client, newpath,
+                    (char *) header2 + sizeof(struct ipc_rfs_rename_file_request_header),
+                    header2->path_len);
+
+            if (rc < 0) {
+                ipc_client_log(client, "ipc_rfs_make_path failed");
+                goto error;
+            }
+
+            data.ret = rename(oldpath, newpath);
+            break;
+        }
+        case IPC_RFS_UNLINK_FILE:
+        {
+            if (message->size < sizeof(struct ipc_rfs_unlink_file_request_header))
+                return -1;
+
+            struct ipc_rfs_unlink_file_request_header *header =
+                    (struct ipc_rfs_unlink_file_request_header *) message->data;
+            char path[PATH_MAX];
+            rc = ipc_rfs_make_path(client, path,
+                    (char *) message->data + sizeof(struct ipc_rfs_unlink_file_request_header),
+                    header->path_len);
+            if (rc < 0)
+                goto error;
+            rc = unlink(path);
+            if (rc < 0 && errno == ENOENT)
+                rc = 0;
+            data.ret = rc;
+
+            break;
+        }
+        case IPC_RFS_MAKE_DIR:
+        {
+            if (message->size < sizeof(struct ipc_rfs_make_dir_request_header))
+                return -1;
+
+            struct stat buf;
+            struct ipc_rfs_make_dir_request_header *header =
+                    (struct ipc_rfs_make_dir_request_header *) message->data;
+            char path[PATH_MAX];
+            rc = ipc_rfs_make_path(client, path,
+                    (char *) message->data + sizeof(struct ipc_rfs_make_dir_request_header),
+                    header->path_len);
+            if (rc < 0)
+                goto error;
+            rc = stat(path, &buf);
+            if (rc < 0 && errno == ENOENT)
+                rc = mkdir(path, 0660);
+            data.ret = rc;
+            break;
+        }
+        case IPC_RFS_REMOVE_DIR:
+        {
+            if (message->size < sizeof(struct ipc_rfs_remove_dir_request_header))
+                return -1;
+
+            struct ipc_rfs_remove_dir_request_header *header =
+                    (struct ipc_rfs_remove_dir_request_header *) message->data;
+            char path[PATH_MAX];
+            rc = ipc_rfs_make_path(client, path,
+                    (char *) message->data + sizeof(struct ipc_rfs_remove_dir_request_header),
+                    header->path_len);
+            if (rc < 0)
+                goto error;
+            data.ret = rmdir(path);
+            break;
+        }
+        case IPC_RFS_OPEN_DIR:
+        {
+            if (message->size < sizeof(struct ipc_rfs_open_dir_request_header))
+                return -1;
+
+            DIR *dirp;
+            struct ipc_rfs_open_dir_request_header *header =
+                    (struct ipc_rfs_open_dir_request_header *) message->data;
+            char path[PATH_MAX];
+            rc = ipc_rfs_make_path(client, path,
+                    (char *) message->data + sizeof(struct ipc_rfs_open_dir_request_header),
+                    header->path_len);
+            if (rc < 0)
+                goto error;
+            dirp = opendir(path);
+            if (dirp) {
+                data.ret = (int) dirp;
+                /**
+                 * Explicitly clear errno here, as dirp can be considered
+                 * negative below, leading to errors if errno was already set
+                 */
+                errno = 0;
+            } else {
+                data.ret = -1;
+            }
+            break;
+        }
+        case IPC_RFS_CLOSE_DIR:
+        {
+            if (message->size < sizeof(struct ipc_rfs_close_dir_request_header))
+                return -1;
+
+            struct ipc_rfs_close_dir_request_header *header =
+                    (struct ipc_rfs_close_dir_request_header *) message->data;
+            data.ret = closedir((DIR *) header->addr);
+            break;
+        }
+        case IPC_RFS_OPEN_FILE:
+        {
+            if (message->size < sizeof(struct ipc_rfs_open_file_request_header))
+                return -1;
+
+            struct ipc_rfs_open_file_request_header *header =
+                    (struct ipc_rfs_open_file_request_header *) message->data;
+            char path[PATH_MAX];
+            rc = ipc_rfs_make_path(client, path,
+                    (char *) message->data + sizeof(struct ipc_rfs_open_file_request_header),
+                    header->path_len);
+            if (rc < 0)
+                goto error;
+            if (header->flags & O_CREAT) {
+                ipc_client_log(client, "Recursively creating directory and files");
+
+                char *index = strrchr(path, '/');
+                if (index != NULL)
+                    mkdir_p(path);
+            }
+            data.ret = open(path, header->flags | O_DSYNC, 0644);
+            break;
+        }
+        default:
+        {
+            ipc_client_log(client, "Unknown generic IO command %d", message->command);
+            goto error;
+        }
+    }
+
+    if (data.ret < 0)
+        data.err = errno;
+
+    rc = ipc_client_send(client, message->aseq, message->command, IPC_TYPE_RESP, &data,
+            sizeof(struct ipc_rfs_generic_io_response_header));
+
+    return 0;
+
+error:
+    data.ret = -1;
+    data.err = EPERM;
+
+    rc = ipc_client_send(client, message->aseq, message->command, IPC_TYPE_RESP, &data,
+            sizeof(struct ipc_rfs_generic_io_response_header));
+
+    return 0;
+}
+
+int ipc_rfs_file_info(struct ipc_client *client, struct ipc_message *message)
+{
+    struct ipc_rfs_data *ipc_rfs_data;
+    struct ipc_rfs_file_info_response_data data;
+    struct stat buf;
+    struct tm result;
+    char path[PATH_MAX];
+    int rc;
+
+    if (message == NULL || message->data == NULL)
+        return -1;
+
+    memset(&data, 0, sizeof(data));
+
+    if (message->command == IPC_RFS_GET_FILE_INFO) {
+        if (message->size < sizeof(struct ipc_rfs_get_file_info_request_header))
+            return -1;
+
+        struct ipc_rfs_get_file_info_request_header *header =
+                (struct ipc_rfs_get_file_info_request_header *) message->data;
+
+        rc = ipc_rfs_make_path(client, path,
+                (char*) message->data + sizeof(struct ipc_rfs_get_file_info_request_header),
+                header->path_len);
+        if (rc < 0) {
+            data.ret = -1;
+            data.err = EPERM;
+            goto out;
+        }
+
+        rc = stat(path, &buf);
+    } else if (message->command == IPC_RFS_GET_HANDLE_INFO) {
+        if (message->size < sizeof(struct ipc_rfs_get_handle_info_request_header))
+            return -1;
+
+        struct ipc_rfs_get_handle_info_request_header *header =
+                (struct ipc_rfs_get_handle_info_request_header *) message->data;
+
+        rc = fstat(header->fd, &buf);
+    } else {
+        ipc_client_log(client, "Unknown/unimplemented rfs command: %d", message->command);
+        return -1;
+    }
+
+    if (rc < 0) {
+        data.ret = rc;
+        data.err = errno;
+    } else {
+        if (S_ISDIR(buf.st_mode)) {
+            data.type = IPC_RFS_TYPE_DIRECTORY;
+        } else if (S_ISREG(buf.st_mode)) {
+            data.type = IPC_RFS_TYPE_FILE;
+        } else {
+            ipc_client_log(client, "Unknown file type, setting to 0");
+            data.type = IPC_RFS_TYPE_UNKNOWN;
+        }
+        data.size = buf.st_size;
+
+        // Store creation times
+        localtime_r((time_t *) &buf.st_ctime, &result);
+        data.c_year = (unsigned char) (result.tm_year  - 100);
+        data.c_month = (unsigned char) (result.tm_mon + 1);
+        data.c_day = (unsigned char) result.tm_mday;
+        data.c_hour = (unsigned char) result.tm_hour;
+        data.c_min = (unsigned char) result.tm_min;
+        data.c_sec = (unsigned char) result.tm_sec;
+
+        // Store modification times
+        localtime_r((time_t *) &buf.st_mtime, &result);
+        data.m_year = (unsigned char) (result.tm_year  - 100);
+        data.m_month = (unsigned char) (result.tm_mon + 1);
+        data.m_day = (unsigned char) result.tm_mday;
+        data.m_hour = (unsigned char) result.tm_hour;
+        data.m_min = (unsigned char) result.tm_min;
+        data.m_sec = (unsigned char) result.tm_sec;
+    }
+
+out:
+    rc = ipc_client_send(client, message->aseq, message->command, IPC_TYPE_RESP, (void *) &data, sizeof(data));
+
+    return 0;
+}
+
+int ipc_rfs_handle_msg(struct ipc_client *client, struct ipc_message *message)
+{
+    switch(message->command)
+    {
+        case IPC_RFS_NV_READ_ITEM:
+            return ipc_rfs_nv_read_item(client, message);
+        case IPC_RFS_NV_WRITE_ITEM:
+            return ipc_rfs_nv_write_item(client, message);
+        case IPC_RFS_GET_FILE_INFO:
+        case IPC_RFS_GET_HANDLE_INFO:
+            return ipc_rfs_file_info(client, message);
+        case IPC_RFS_READ_DIR:
+            return ipc_rfs_read_dir(client, message);
+        default:
+            return ipc_rfs_generic_io(client, message);
+    }
 }
 
 // vim:ts=4:sw=4:expandtab
