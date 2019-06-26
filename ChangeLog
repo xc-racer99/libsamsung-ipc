@@ -1,3 +1,38 @@
+
+Version 0.3.2
+=====================
+
+a2eb2fb gprs: Check length of username and password when activating context
+53b809f gprs: Change definition of struct ipc_gprs_ip_configuration_data
+4b1b2be ipc-modem: Make incoming call audio work
+0975608 ipc-modem: Add support for RFS commands
+2c2efad rfs: Move all helpers to common rfs code
+669f81c crespo: Add support for mainline kernel and STE M5730 modems
+b20dc50 Add a helper for calculating XMODEM CRC
+0e88403 Add a default call type
+23b16d4 Add more call type defines
+636c9d9 Fix struct ipc_net_serving_network_data definition
+76a9bea Add headers and defines for more RFS commands
+b1b1109 devices: fix strncmp use
+fd8ff5a Android: also build as a shared libarry
+9516560 devices: fix strncmp length
+63717f8 devices: galaxys2: silence unused variable warnings
+8481ee7 devices: maguro: silence unused variable warnings
+279cf20 devices: i9300: silence unused variable warnings
+6ced127 devices: piranha: silence unused variable warnings
+9bd982a devices: n7100: silence unused variable warnings
+8723816 devices: crespo: silence unused variable warnings
+e5df8e0 devices: xmm616: get rid of unused variables
+051c179 tools: silence unused variable warnings
+6bde853 ipc.c: get rid of unused variables
+35b4575 add support for n5100
+f6afcc3 support new codename and board name for piranha
+f53c79a Add some missing headers
+a052681 tools: nv_data-md5 tool for calculating (salted) nv_data md5
+00c0e2f aries: The gprs iface may be requested before it's activated
+542bc49 ipc_utils: ipc_data_dump string escape
+de0f592 gprs: Unknown fields
+
 Version 0.3.1
 =====================
 
