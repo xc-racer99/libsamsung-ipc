@@ -131,7 +131,11 @@ struct ipc_gprs_ip_configuration_data {
     unsigned char dns2[4];
     unsigned char gateway[4];
     unsigned char subnet_mask[4];
-    unsigned char unknown[4];
+/**
+ *   The following isn't present on all devices
+ *
+ *   unsigned char unknown[4];
+ */
 } __attribute__((__packed__));
 
 struct ipc_gprs_hsdpa_status_data {
