@@ -23,6 +23,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <signal.h>
 #include <termios.h>
 #include <fcntl.h>
 #include <string.h>
@@ -33,6 +34,8 @@
 #include <getopt.h>
 
 #include <samsung-ipc.h>
+
+#include "rfs.h"
 
 #define MODEM_STATE_LPM     0
 #define MODEM_STATE_NORMAL  2
@@ -365,11 +368,44 @@ void modem_response_handle(struct ipc_client *client, struct ipc_message *resp)
             if(in_call)
                 modem_snd_no_mic_mute(client);
         break;
+        case IPC_GROUP_RFS:
+            ipc_rfs_handle_msg(client, resp);
+        break;
     }
 }
 
 
 int modem_read_loop(struct ipc_client *client)
+{
+    struct ipc_message resp;
+    int rc;
+
+    memset(&resp, 0, sizeof(resp));
+
+    while(1) {
+        usleep(3000);
+
+        rc = ipc_client_poll(client, NULL, NULL);
+        if (rc < 0) {
+            continue;
+        }
+
+        rc = ipc_client_recv(client, &resp);
+        if(rc < 0) {
+            printf("[E] Can't RECV from modem: please run this again\n");
+            break;
+        }
+
+        modem_response_handle(client, &resp);
+
+        if(resp.data != NULL)
+            free(resp.data);
+    }
+
+    return 0;
+}
+
+int modem_rfs_read_loop(struct ipc_client *client)
 {
     struct ipc_message resp;
     int rc;
@@ -460,6 +496,42 @@ int modem_stop(struct ipc_client *client)
     return 0;
 }
 
+void *rfs_thread(void *vargp)
+{
+    struct ipc_client *client_rfs;
+    int rc;
+
+    client_rfs = ipc_client_create(IPC_CLIENT_TYPE_RFS);
+
+    if (client_rfs == 0) {
+        printf("[E] Could not create IPC client; aborting ...\n");
+        return NULL;
+    }
+
+    rc = ipc_client_data_create(client_rfs);
+    if (rc) {
+        printf("[E] Failed to create RFS client data; aborting ... \n");
+        goto err_data_create;
+    }
+
+    ipc_client_log_callback_register(client_rfs, modem_log_handler, NULL);
+
+    rc = ipc_client_open(client_rfs);
+    if (rc) {
+        printf("[E] Failed to open RFS client; aborting ... \n");
+        goto err_data_create;
+    }
+
+    printf("[1] Starting modem_read_loop on RFS client\n");
+    modem_read_loop(client_rfs);
+
+    ipc_client_close(client_rfs);
+err_data_create:
+    ipc_client_destroy(client_rfs);
+
+    return NULL;
+}
+
 void print_help()
 {
     printf("usage: ipc-modem <command>\n");
@@ -480,6 +552,7 @@ int main(int argc, char *argv[])
     int opt_i = 0;
     int rc = -1;
     int debug = 0;
+    pthread_t thread_rfs;
 
     struct option opt_l[] = {
         {"help",    no_argument,        0,  0 },
@@ -549,15 +622,20 @@ int main(int argc, char *argv[])
             printf("[0] Starting modem on FMT client\n");
             rc = modem_start(client_fmt);
             if(rc < 0) {
-                printf("[E] Something went wrong\n");
+                printf("[E] Something went wrong with FMT client\n");
                 modem_stop(client_fmt);
                 return 1;
             }
+
+            pthread_create(&thread_rfs, NULL, rfs_thread, NULL);
 
             printf("[1] Starting modem_read_loop on FMT client\n");
             modem_read_loop(client_fmt);
 
             modem_stop(client_fmt);
+
+            pthread_kill(thread_rfs, 9);
+            pthread_join(thread_rfs, NULL);
         } else {
             printf("[E] Unknown argument: '%s'\n", argv[optind]);
             print_help();
