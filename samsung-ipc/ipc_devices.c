@@ -55,7 +55,7 @@ struct ipc_device_desc ipc_devices[] = {
     },
     {
         .name = "crespo",
-        .board_name = "Samsung S5PC110/S5PV210-based board",
+        .board_name = "samsung s5pc110/s5pv210-based board",
         .kernel_version = NULL,
         .fmt_ops = &crespo_fmt_ops,
         .rfs_ops = &crespo_rfs_ops,
