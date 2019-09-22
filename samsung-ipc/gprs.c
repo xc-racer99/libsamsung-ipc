@@ -50,7 +50,7 @@ int ipc_gprs_pdp_context_request_set_setup(struct ipc_gprs_pdp_context_request_s
     data->enable = enable;
     data->cid = cid;
 
-    if (enable && username != NULL && password != NULL) {
+    if (enable && username != NULL && password != NULL && strlen(username) > 0 && strlen(password) > 0) {
         data->magic1[2] = 0x13;
         data->magic2 = 0x01;
 
