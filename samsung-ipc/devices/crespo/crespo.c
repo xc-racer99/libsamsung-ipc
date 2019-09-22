@@ -30,6 +30,7 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <sys/ioctl.h>
+#include <sys/select.h>
 
 #include <samsung-ipc.h>
 #include <ipc.h>
