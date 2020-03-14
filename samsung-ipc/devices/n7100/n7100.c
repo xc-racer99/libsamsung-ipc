@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <sys/mman.h>
 
 #include <samsung-ipc.h>
@@ -59,20 +60,14 @@ int n7100_boot(struct ipc_client *client)
     }
     ipc_client_log(client, "Mapped modem image data to memory");
 
-    modem_boot_fd = open(XMM626_SEC_MODEM_BOOT0_DEVICE, O_RDWR | O_NOCTTY | O_NONBLOCK);
-    if (modem_boot_fd < 0) {
-        ipc_client_log(client, "Opening modem boot device failed");
-        goto error;
-    }
-    ipc_client_log(client, "Opened modem boot device");
-
-    modem_link_fd = open(XMM626_SEC_MODEM_LINK_PM_DEVICE, O_RDWR);
+    /*    modem_link_fd = open(XMM626_SEC_MODEM_LINK_PM_DEVICE, O_RDWR);
     if (modem_link_fd < 0) {
         ipc_client_log(client, "Opening modem link device failed");
         goto error;
     }
     ipc_client_log(client, "Opened modem link device");
-
+*/
+    rc = xmm626_sec_modem_power(modem_boot_fd, 0);
     rc = xmm626_sec_modem_hci_power(0);
     if (rc < 0) {
         ipc_client_log(client, "Turning the modem off failed");
@@ -81,7 +76,9 @@ int n7100_boot(struct ipc_client *client)
     ipc_client_log(client, "Turned the modem off");
 
     rc = xmm626_sec_modem_power(modem_boot_fd, 1);
+    printf("%d\n", rc);
     rc |= xmm626_sec_modem_hci_power(1);
+    printf("%d\n", rc);
 
     if (rc < 0) {
         ipc_client_log(client, "Turning the modem on failed");
@@ -89,13 +86,29 @@ int n7100_boot(struct ipc_client *client)
     }
     ipc_client_log(client, "Turned the modem on");
 
-    rc = xmm626_sec_modem_link_connected_wait(modem_link_fd);
+    rc = 0;
+    do {
+	    modem_boot_fd = open(XMM626_SEC_MODEM_BOOT0_DEVICE, O_RDWR | O_NOCTTY | O_NONBLOCK);
+	    if (modem_boot_fd >= 0) {
+		    break;
+	    }
+	    usleep(5000);
+	    rc++;
+    } while (rc < 10000);
+    if (modem_boot_fd < 0) {
+	    ipc_client_log(client, "Failed to open boot device");
+	    goto error;
+    }
+    ipc_client_log(client, "Opened modem boot device");
+
+
+ /*   rc = xmm626_sec_modem_link_connected_wait(modem_link_fd);
     if (rc < 0) {
         ipc_client_log(client, "Waiting for link connected failed");
         goto error;
     }
     ipc_client_log(client, "Waited for link connected");
-
+*/
     p = (unsigned char *) modem_image_data + N7100_PSI_OFFSET;
 
     rc = xmm626_hsic_psi_send(client, modem_boot_fd, (void *) p, N7100_PSI_SIZE);
@@ -179,7 +192,6 @@ int n7100_boot(struct ipc_client *client)
     rc = xmm626_sec_modem_link_get_hostwake_wait(modem_link_fd);
     if (rc < 0) {
         ipc_client_log(client, "Waiting for host wake failed");
-        goto error;
     }
     ipc_client_log(client, "Waited for host wake");
 
@@ -192,11 +204,11 @@ int n7100_boot(struct ipc_client *client)
         goto error;
     }
 
-    rc = xmm626_sec_modem_link_connected_wait(modem_link_fd);
+ /*   rc = xmm626_sec_modem_link_connected_wait(modem_link_fd);
     if (rc < 0) {
         ipc_client_log(client, "Waiting for link connected failed");
         goto error;
-    }
+    }*/
     ipc_client_log(client, "Waited for link connected");
 
     usleep(300000);
@@ -288,23 +300,28 @@ int n7100_poll(void *data, struct ipc_poll_fds *fds, struct timeval *timeout)
 {
     struct n7100_transport_data *transport_data;
     int rc;
+    struct pollfd fd;
 
     if (data == NULL)
         return -1;
 
     transport_data = (struct n7100_transport_data *) data;
 
-    rc = xmm626_sec_modem_poll(transport_data->fd, fds, timeout);
+    fd.fd = transport_data->fd;
+    fd.events = POLLRDNORM | POLLIN;
 
-    return rc;
+    rc = poll(&fd, 1, -1);
+
+    printf("poll returns %d\n", rc);
+    return rc - 1;
 }
 
-int n7100_power_on(__attribute__((unused)) void *data)
+int n7100_power_on(void *data)
 {
     return 0;
 }
 
-int n7100_power_off(__attribute__((unused)) void *data)
+int n7100_power_off(void *data)
 {
     int fd;
     int rc;
@@ -323,21 +340,18 @@ int n7100_power_off(__attribute__((unused)) void *data)
     return 0;
 }
 
-int n7100_gprs_activate(__attribute__((unused)) void *data,
-			__attribute__((unused)) unsigned int cid)
+int n7100_gprs_activate(void *data, unsigned int cid)
 {
     return 0;
 }
 
-int n7100_gprs_deactivate(__attribute__((unused)) void *data,
-			  __attribute__((unused)) unsigned int cid)
+int n7100_gprs_deactivate(void *data, unsigned int cid)
 {
     return 0;
 }
 
-int n7100_data_create(void **transport_data,
-		      __attribute__((unused)) void **power_data,
-		      __attribute__((unused)) void **gprs_data)
+int n7100_data_create(void **transport_data, void **power_data,
+    void **gprs_data)
 {
     if (transport_data == NULL)
         return -1;
@@ -347,9 +361,8 @@ int n7100_data_create(void **transport_data,
     return 0;
 }
 
-int n7100_data_destroy(void *transport_data,
-		       __attribute__((unused)) void *power_data,
-		       __attribute__((unused)) void *gprs_data)
+int n7100_data_destroy(void *transport_data, void *power_data,
+    void *gprs_data)
 {
     if (transport_data == NULL)
         return -1;

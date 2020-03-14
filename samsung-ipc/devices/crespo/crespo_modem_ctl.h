@@ -20,28 +20,7 @@
 #define IOCTL_MODEM_RESET               _IO('o', 0x20)
 #define IOCTL_MODEM_START               _IO('o', 0x21)
 #define IOCTL_MODEM_OFF                 _IO('o', 0x22)
-
-#define IOCTL_MODEM_SEND		_IO('o', 0x23)
-#define IOCTL_MODEM_RECV		_IO('o', 0x24)
-
-#define IOCTL_MODEM_WAIT_FOR_SBL	_IO('o', 0x25)
-#define IOCTL_MODEM_BINARY_LOAD		_IO('o', 0x26)
-
-struct modem_io {
-	uint32_t size;
-	uint32_t id;
-	uint32_t cmd;
-	void *data;
-};
-
-/* platform data */
-struct modemctl_data {
-	const char *name;
-	unsigned gpio_phone_active;
-	unsigned gpio_pda_active;
-	unsigned gpio_cp_reset;
-	unsigned gpio_phone_on;
-	bool is_cdma_modem; /* 1:CDMA Modem */
-};
+#define IOCTL_MODEM_WAIT_FOR_SBL	_IO('o', 0x23)
+#define IOCTL_MODEM_BINARY_LOAD		_IO('o', 0x24)
 
 #endif

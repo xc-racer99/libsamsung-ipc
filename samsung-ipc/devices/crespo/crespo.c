@@ -30,13 +30,17 @@
 #include <fcntl.h>
 #include <limits.h>
 #include <sys/ioctl.h>
-#include <sys/select.h>
+#include <sys/time.h>
+#include <poll.h>
 
 #include <samsung-ipc.h>
 #include <ipc.h>
 
 #include "crespo_modem_ctl.h"
 
+#include "xmm626.h"
+#include "xmm626_hsic.h"
+#include "xmm626_sec_modem.h"
 #include "xmm616.h"
 #include "ste_m5730.h"
 #include "crespo.h"
@@ -173,175 +177,6 @@ int crespo_boot(struct ipc_client *client)
     return rc;
 }
 
-int crespo_fmt_send(struct ipc_client *client, struct ipc_message *message)
-{
-    struct ipc_fmt_header header;
-    struct modem_io mio;
-    int rc;
-
-    if (client == NULL || client->handlers == NULL || client->handlers->write == NULL || message == NULL)
-        return -1;
-
-    ipc_fmt_header_setup(&header, message);
-
-    memset(&mio, 0, sizeof(struct modem_io));
-    mio.size = message->size + sizeof(struct ipc_fmt_header);
-    mio.data = calloc(1, mio.size);
-
-    memcpy(mio.data, &header, sizeof(struct ipc_fmt_header));
-    if (message->data != NULL && message->size > 0)
-        memcpy((void *) ((unsigned char *) mio.data + sizeof(struct ipc_fmt_header)), message->data, message->size);
-
-    ipc_client_log_send(client, message, __func__);
-
-    rc = client->handlers->write(client->handlers->transport_data, (void *) &mio, sizeof(struct modem_io));
-    if (rc < 0) {
-        ipc_client_log(client, "Writing FMT data failed");
-        goto error;
-    }
-
-    rc = 0;
-    goto complete;
-
-error:
-    rc = -1;
-
-complete:
-    if (mio.data != NULL)
-        free(mio.data);
-
-    return rc;
-}
-
-int crespo_fmt_recv(struct ipc_client *client, struct ipc_message *message)
-{
-    struct ipc_fmt_header *header;
-    struct modem_io mio;
-    int rc;
-
-    if (client == NULL || client->handlers == NULL || client->handlers->read == NULL || message == NULL)
-        return -1;
-
-    memset(&mio, 0, sizeof(struct modem_io));
-    mio.size = CRESPO_BUFFER_LENGTH;
-    mio.data = calloc(1, mio.size);
-
-    rc = client->handlers->read(client->handlers->transport_data, &mio, sizeof(struct modem_io) + mio.size);
-    if (rc < 0 || mio.data == NULL || mio.size < sizeof(struct ipc_fmt_header) || mio.size > CRESPO_BUFFER_LENGTH) {
-        ipc_client_log(client, "Reading FMT data failed");
-        goto error;
-    }
-
-    header = (struct ipc_fmt_header *) mio.data;
-
-    ipc_fmt_message_setup(header, message);
-
-    if (mio.size > sizeof(struct ipc_fmt_header)) {
-        message->size = mio.size - sizeof(struct ipc_fmt_header);
-        message->data = calloc(1, message->size);
-
-        memcpy(message->data, (void *) ((unsigned char *) mio.data + sizeof(struct ipc_fmt_header)), message->size);
-    }
-
-    ipc_client_log_recv(client, message, __func__);
-
-    rc = 0;
-    goto complete;
-
-error:
-    rc = -1;
-
-complete:
-    if (mio.data != NULL)
-        free(mio.data);
-
-    return rc;
-}
-
-int crespo_rfs_send(struct ipc_client *client, struct ipc_message *message)
-{
-    struct modem_io mio;
-    int rc;
-
-    if (client == NULL || client->handlers == NULL || client->handlers->write == NULL || message == NULL)
-        return -1;
-
-    memset(&mio, 0, sizeof(struct modem_io));
-    mio.id = message->mseq;
-    mio.cmd = IPC_INDEX(message->command);
-    mio.size = message->size;
-
-    if (message->data != NULL && message->size > 0) {
-        mio.data = calloc(1, mio.size);
-
-        memcpy(mio.data, message->data, message->size);
-    }
-
-    ipc_client_log_send(client, message, __func__);
-
-    rc = client->handlers->write(client->handlers->transport_data, (void *) &mio, sizeof(struct modem_io));
-    if (rc < 0) {
-        ipc_client_log(client, "Writing RFS data failed");
-        goto error;
-    }
-
-    rc = 0;
-    goto complete;
-
-error:
-    rc = -1;
-
-complete:
-    if (mio.data != NULL)
-        free(mio.data);
-
-    return rc;
-}
-
-int crespo_rfs_recv(struct ipc_client *client, struct ipc_message *message)
-{
-    struct modem_io mio;
-    int rc;
-
-    if (client == NULL || client->handlers == NULL || client->handlers->read == NULL || message == NULL)
-        return -1;
-
-    memset(&mio, 0, sizeof(struct modem_io));
-    mio.size = CRESPO_BUFFER_LENGTH;
-    mio.data = calloc(1, mio.size);
-
-    rc = client->handlers->read(client->handlers->transport_data, &mio, sizeof(struct modem_io) + mio.size);
-    if (rc < 0 || mio.data == NULL || mio.size <= 0 || mio.size > CRESPO_BUFFER_LENGTH) {
-        ipc_client_log(client, "Reading RFS data failed");
-        goto error;
-    }
-
-    memset(message, 0, sizeof(struct ipc_message));
-    message->aseq = mio.id;
-    message->command = IPC_COMMAND(IPC_GROUP_RFS, mio.cmd);
-
-    if (mio.size > 0) {
-        message->size = mio.size;
-        message->data = calloc(1, message->size);
-
-        memcpy(message->data, mio.data, message->size);
-    }
-
-    ipc_client_log_recv(client, message, __func__);
-
-    rc = 0;
-    goto complete;
-
-error:
-    rc = -1;
-
-complete:
-    if (mio.data != NULL)
-        free(mio.data);
-
-    return rc;
-}
-
 int crespo_open(void *data, int type)
 {
     struct crespo_transport_data *transport_data;
@@ -352,21 +187,9 @@ int crespo_open(void *data, int type)
 
     transport_data = (struct crespo_transport_data *) data;
 
-    switch (type) {
-        case IPC_CLIENT_TYPE_FMT:
-            fd = open(CRESPO_MODEM_FMT_DEVICE, O_RDWR | O_NOCTTY | O_NONBLOCK);
-            break;
-        case IPC_CLIENT_TYPE_RFS:
-            fd = open(CRESPO_MODEM_RFS_DEVICE, O_RDWR | O_NOCTTY | O_NONBLOCK);
-            break;
-        default:
-            return -1;
-    }
-
-    if (fd < 0)
+    transport_data->fd = xmm626_sec_modem_open(type);
+    if (transport_data->fd < 0)
         return -1;
-
-    transport_data->fd = fd;
 
     return 0;
 }
@@ -381,12 +204,8 @@ int crespo_close(void *data)
 
     transport_data = (struct crespo_transport_data *) data;
 
-    fd = transport_data->fd;
-    if (fd < 0)
-        return -1;
-
+    xmm626_sec_modem_close(transport_data->fd);
     transport_data->fd = -1;
-    close(fd);
 
     return 0;
 }
@@ -394,55 +213,6 @@ int crespo_close(void *data)
 int crespo_read(void *data, void *buffer, size_t length)
 {
     struct crespo_transport_data *transport_data;
-    int fd;
-    int rc;
-
-    if (data == NULL || buffer == NULL || length == 0)
-        return -1;
-
-    transport_data = (struct crespo_transport_data *) data;
-
-    fd = transport_data->fd;
-    if (fd < 0)
-        return -1;
-
-    rc = ioctl(fd, IOCTL_MODEM_RECV, buffer);
-    if (rc < 0)
-        return -1;
-
-    return 0;
-}
-
-int crespo_write(void *data, const void *buffer, size_t length)
-{
-    struct crespo_transport_data *transport_data;
-    int fd;
-    int rc;
-
-    if (data == NULL || buffer == NULL || length == 0)
-        return -1;
-
-    transport_data = (struct crespo_transport_data *) data;
-
-    fd = transport_data->fd;
-    if (fd < 0)
-        return -1;
-
-    rc = ioctl(fd, IOCTL_MODEM_SEND, buffer);
-    if (rc < 0)
-        return -1;
-
-    return 0;
-}
-
-int crespo_poll(void *data, struct ipc_poll_fds *fds, struct timeval *timeout)
-{
-    struct crespo_transport_data *transport_data;
-    fd_set set;
-    int fd;
-    int fd_max;
-    unsigned int i;
-    unsigned int count;
     int rc;
 
     if (data == NULL)
@@ -450,42 +220,47 @@ int crespo_poll(void *data, struct ipc_poll_fds *fds, struct timeval *timeout)
 
     transport_data = (struct crespo_transport_data *) data;
 
-    fd = transport_data->fd;
-    if (fd < 0)
-        return -1;
-
-    FD_ZERO(&set);
-    FD_SET(fd, &set);
-
-    fd_max = fd;
-
-    if (fds != NULL && fds->fds != NULL && fds->count > 0) {
-        for (i = 0; i < fds->count; i++) {
-            if (fds->fds[i] >= 0) {
-                FD_SET(fds->fds[i], &set);
-
-                if (fds->fds[i] > fd_max)
-                    fd_max = fds->fds[i];
-            }
-        }
-    }
-
-    rc = select(fd_max + 1, &set, NULL, NULL, timeout);
-
-    if (fds != NULL && fds->fds != NULL && fds->count > 0) {
-        count = fds->count;
-
-        for (i = 0; i < fds->count; i++) {
-            if (!FD_ISSET(fds->fds[i], &set)) {
-                fds->fds[i] = -1;
-                count--;
-            }
-        }
-
-        fds->count = count;
-    }
+    rc = xmm626_sec_modem_read(transport_data->fd, buffer, length);
 
     return rc;
+}
+
+int crespo_write(void *data, const void *buffer, size_t length)
+{
+    struct crespo_transport_data *transport_data;
+    int rc;
+
+    if (data == NULL)
+        return -1;
+
+    transport_data = (struct crespo_transport_data *) data;
+
+    rc = xmm626_sec_modem_write(transport_data->fd, buffer, length);
+
+    return rc;
+}
+
+int crespo_poll(void *data, struct ipc_poll_fds *fds, struct timeval *timeout)
+{
+    struct crespo_transport_data *transport_data;
+    int rc;
+    struct pollfd fd;
+
+    if (data == NULL)
+        return -1;
+
+    transport_data = (struct crespo_transport_data *) data;
+
+    fd.fd = transport_data->fd;
+    fd.events = POLLRDNORM | POLLIN;
+
+    if (timeout) {
+        rc = poll(&fd, 1, timeout->tv_sec * 1000);
+    } else {
+        rc = poll(&fd, 1, -1);
+    }
+
+    return rc - 1;
 }
 
 int crespo_xmm_power_on()
@@ -613,14 +388,14 @@ int crespo_gprs_get_capabilities(struct ipc_client_gprs_capabilities *capabiliti
 
 struct ipc_client_ops crespo_fmt_ops = {
     .boot = crespo_boot,
-    .send = crespo_fmt_send,
-    .recv = crespo_fmt_recv,
+    .send = xmm626_sec_modem_fmt_send,
+    .recv = xmm626_sec_modem_fmt_recv,
 };
 
 struct ipc_client_ops crespo_rfs_ops = {
     .boot = NULL,
-    .send = crespo_rfs_send,
-    .recv = crespo_rfs_recv,
+    .send = xmm626_sec_modem_rfs_send,
+    .recv = xmm626_sec_modem_rfs_recv,
 };
 
 struct ipc_client_handlers crespo_handlers = {

@@ -30,12 +30,10 @@
 #define CRESPO_MODEM_BIN_PATH                   "/radio/modem.bin"
 #define CRESPO_MODEM_SERIAL_DEVICE              "/dev/s3c2410_serial3"
 #define CRESPO_ALT_MODEM_SERIAL_DEVICE          "/dev/ttySAC3"
-#define CRESPO_MODEM_CTL_DEVICE                 "/dev/modem_ctl"
-#define CRESPO_MODEM_FMT_DEVICE                 "/dev/modem_fmt"
-#define CRESPO_MODEM_RFS_DEVICE                 "/dev/modem_rfs"
+#define CRESPO_MODEM_CTL_DEVICE                 "/dev/sipc_onedram"
 
 #define CRESPO_GPRS_IFACE_PREFIX                "rmnet"
-#define CRESPO_GPRS_IFACE_COUNT                                 3
+#define CRESPO_GPRS_IFACE_COUNT                 2
 
 #define CRESPO_EFS_ROOT                         "/efs/root"
 

@@ -18,6 +18,7 @@
  * along with libsamsung-ipc.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <errno.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -40,10 +41,7 @@ int xmm626_sec_modem_power(int device_fd, int power)
 {
     int rc;
 
-    if (device_fd < 0)
-        return -1;
-
-    rc = ioctl(device_fd, power ? IOCTL_MODEM_ON : IOCTL_MODEM_OFF, 0);
+    rc = sysfs_value_write(XMM626_SEC_MODEM_POWER_PATH, !!power);
     if (rc < 0)
         return -1;
 
@@ -57,7 +55,7 @@ int xmm626_sec_modem_boot_power(int device_fd, int power)
     if (device_fd < 0)
         return -1;
 
-    rc = ioctl(device_fd, power ? IOCTL_MODEM_BOOT_ON : IOCTL_MODEM_BOOT_OFF, 0);
+    rc = sysfs_value_write(XMM626_SEC_MODEM_POWER_PATH, !!power);
     if (rc < 0)
         return -1;
 
@@ -86,16 +84,39 @@ int xmm626_sec_modem_status_online_wait(int device_fd)
 
 int xmm626_sec_modem_hci_power(int power)
 {
-    int ehci_rc, ohci_rc;
+    int ehci_rc, ohci_rc = -1;
 
-    ehci_rc = sysfs_value_write(XMM626_SEC_MODEM_EHCI_POWER_SYSFS, !!power);
-    if (ehci_rc >= 0)
-        usleep(50000);
-
-    ohci_rc = sysfs_value_write(XMM626_SEC_MODEM_OHCI_POWER_SYSFS, !!power);
+    
+    /*ohci_rc = sysfs_value_write(XMM626_SEC_MODEM_OHCI_POWER_SYSFS, !!power);
     if (ohci_rc >= 0)
         usleep(50000);
+*/
 
+    if (!!power) {
+	ohci_rc = sysfs_value_write(XMM626_SEC_MODEM_PDA_ACTIVE_SYSFS, 1);
+	if (sysfs_value_read(XMM626_SEC_HOSTWAKE_PATH)) {
+		ohci_rc |= sysfs_value_write(XMM626_SEC_MODEM_SLAVEWAKE_SYSFS, 0);
+		usleep(10000);
+		ohci_rc |= sysfs_value_write(XMM626_SEC_MODEM_SLAVEWAKE_SYSFS, 1);
+	}
+	ehci_rc = sysfs_value_write(XMM626_SEC_MODEM_EHCI_POWER_SYSFS, !!power);
+	if (ehci_rc >= 0)
+		usleep(50000);
+
+	ohci_rc |= sysfs_value_write(XMM626_SEC_LINK_ACTIVE_PATH, 1);
+    } else {
+	    ehci_rc = sysfs_value_write(XMM626_SEC_MODEM_EHCI_POWER_SYSFS, !!power);
+	if (ehci_rc >= 0)
+		usleep(50000);
+
+	//ohci_rc = sysfs_value_write(XMM626_SEC_MODEM_PDA_ACTIVE_SYSFS, 0);
+	ohci_rc = sysfs_value_write(XMM626_SEC_LINK_ACTIVE_PATH, 0);
+    }
+
+
+    if (ohci_rc < 0) {
+	printf("ohci_rc < 0\n");
+    }
     if (ehci_rc < 0 && ohci_rc < 0)
         return -1;
 
@@ -104,15 +125,8 @@ int xmm626_sec_modem_hci_power(int power)
 
 int xmm626_sec_modem_link_control_enable(int device_fd, int enable)
 {
-    int rc;
-
-    if (device_fd < 0)
-        return -1;
-
-    rc = ioctl(device_fd, IOCTL_LINK_CONTROL_ENABLE, &enable);
-    if (rc < 0)
-        return -1;
-
+	if (enable) {
+	}
     return 0;
 }
 
@@ -120,10 +134,7 @@ int xmm626_sec_modem_link_control_active(int device_fd, int active)
 {
     int rc;
 
-    if (device_fd < 0)
-        return -1;
-
-    rc = ioctl(device_fd, IOCTL_LINK_CONTROL_ACTIVE, &active);
+    rc = sysfs_value_write(XMM626_SEC_LINK_ACTIVE_PATH, !!active);
     if (rc < 0)
         return -1;
 
@@ -135,19 +146,13 @@ int xmm626_sec_modem_link_connected_wait(int device_fd)
     int status;
     int i;
 
-    if (device_fd < 0)
-        return -1;
-
     i = 0;
-    for (i = 0; i < 100; i++) {
-        status = ioctl(device_fd, IOCTL_LINK_CONNECTED, 0);
-        if (status)
-            return 0;
+    for (i = 0; i < 10; i++) {
 
         usleep(50000);
     }
 
-    return -1;
+    return 0;
 }
 
 int xmm626_sec_modem_link_get_hostwake_wait(int device_fd)
@@ -155,13 +160,11 @@ int xmm626_sec_modem_link_get_hostwake_wait(int device_fd)
     int status;
     int i;
 
-    if (device_fd < 0)
-        return -1;
-
     i = 0;
     for (i = 0; i < 10; i++) {
-        status = ioctl(device_fd, IOCTL_LINK_GET_HOSTWAKE, 0);
-        if (status)
+        /* !gpio_get_value (hostwake) */
+        status = sysfs_value_read(XMM626_SEC_HOSTWAKE_PATH);
+        if (status == 0) /* invert: return true when hostwake is low */
             return 0;
 
         usleep(50000);
@@ -408,17 +411,24 @@ complete:
 
 int xmm626_sec_modem_open(int type)
 {
-    int fd;
+    int fd = -1, i;
 
-    switch (type) {
-        case IPC_CLIENT_TYPE_FMT:
-            fd = open(XMM626_SEC_MODEM_IPC0_DEVICE, O_RDWR | O_NOCTTY | O_NONBLOCK);
-            break;
-        case IPC_CLIENT_TYPE_RFS:
-            fd = open(XMM626_SEC_MODEM_RFS0_DEVICE, O_RDWR | O_NOCTTY | O_NONBLOCK);
-            break;
-        default:
-            return -1;
+    while (fd < 0 && i < 30) {
+	    i++;
+	    usleep(30000);
+	    switch (type) {
+		case IPC_CLIENT_TYPE_FMT:
+		    printf("%s: %d %d\n", XMM626_SEC_MODEM_IPC0_DEVICE, fd, errno);
+		    fd = open(XMM626_SEC_MODEM_IPC0_DEVICE, O_RDWR | O_NOCTTY | O_NONBLOCK);
+		    break;
+		case IPC_CLIENT_TYPE_RFS:
+		    fd = open(XMM626_SEC_MODEM_RFS0_DEVICE, O_RDWR | O_NOCTTY | O_NONBLOCK);
+		    printf("%s: %d %d\n", XMM626_SEC_MODEM_RFS0_DEVICE, fd, errno);
+		    break;
+		default:
+		    printf("unknown type\n");
+		    return -1;
+	    }
     }
 
     return fd;
@@ -442,10 +452,6 @@ int xmm626_sec_modem_read(int fd, void *buffer, size_t length)
     if (fd < 0 || buffer == NULL || length <= 0)
         return -1;
 
-    status = ioctl(fd, IOCTL_MODEM_STATUS, 0);
-    if (status != STATE_ONLINE && status != STATE_BOOTING)
-        return -1;
-
     rc = read(fd, buffer, length);
 
     return rc;
@@ -453,14 +459,9 @@ int xmm626_sec_modem_read(int fd, void *buffer, size_t length)
 
 int xmm626_sec_modem_write(int fd, const void *buffer, size_t length)
 {
-    int status;
     int rc;
 
     if (fd < 0 || buffer == NULL || length <= 0)
-        return -1;
-
-    status = ioctl(fd, IOCTL_MODEM_STATUS, 0);
-    if (status != STATE_ONLINE && status != STATE_BOOTING)
         return -1;
 
     rc = write(fd, buffer, length);
