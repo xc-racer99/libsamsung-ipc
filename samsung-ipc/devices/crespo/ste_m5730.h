@@ -21,8 +21,6 @@ int crespo_is_ste(void);
 int crespo_ste_boot(struct ipc_client *client);
 int crespo_ste_power_on(void);
 
-#define CRESPO_MODEM_TYPE_SYSFS        "/sys/class/misc/modem_ctl/type"
-
 /* This is prepended to each message sent via serial */
 #define SERIAL_ACK 4008639402U
 

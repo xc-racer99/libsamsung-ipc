@@ -51,22 +51,7 @@ const char* const send_protroms[] = {
 
 int crespo_is_ste(void)
 {
-    char buf[10];
-    int fd, rc;
-
-    fd = open(CRESPO_MODEM_TYPE_SYSFS, O_RDONLY);
-    if (fd < 0)
-        return 0;
-
-    rc = read(fd, buf, 10);
-    if (strncmp(buf, "ste", 10))
-        rc = 1;
-    else
-        rc = 0;
-
-    close(fd);
-
-    return rc;
+    return 1;
 }
 
 int m5730_write_baud_change(struct ipc_client *client, int serial_fd)
