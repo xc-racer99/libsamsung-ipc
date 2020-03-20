@@ -384,7 +384,7 @@ int xmm626_sec_modem_rfs_recv(struct ipc_client *client,
 
         while (count < message->size) {
             rc = client->handlers->read(client->handlers->transport_data, p, message->size - count);
-            if (rc <= 0) {
+            if (rc < 0) {
                 ipc_client_log(client, "Reading RFS data failed");
                 goto error;
             }
