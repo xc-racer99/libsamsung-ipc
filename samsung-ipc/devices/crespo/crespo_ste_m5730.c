@@ -59,7 +59,7 @@ int crespo_is_ste(void)
         return 0;
 
     rc = read(fd, buf, 10);
-    if (strncmp(buf, "ste", 10))
+    if (!strncmp(buf, "ste", 3))
         rc = 1;
     else
         rc = 0;
