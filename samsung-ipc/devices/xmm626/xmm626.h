@@ -45,7 +45,7 @@
 #define XMM626_NV_DATA_BACKUP_MD5_PATH          "/efs/.nv_data.bak.md5"
 #define XMM626_NV_DATA_SECRET                   "Samsung_Android_RIL"
 #define XMM626_NV_DATA_SIZE                                     0x200000
-#define XMM626_NV_DATA_CHUNK_SIZE                               0x1000
+#define XMM626_NV_DATA_CHUNK_SIZE                               0x2000
 
 unsigned char xmm626_crc_calculate(const void *data, size_t size);
 
